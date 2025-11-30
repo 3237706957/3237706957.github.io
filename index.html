@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>剧本杀互动问答</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "微软雅黑", sans-serif;
+            background-color: #f8efff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .container {
+            background-color: #fff;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 500px;
+        }
+        .question-card {
+            display: none;
+        }
+        .question-card.active {
+            display: block;
+        }
+        h2 {
+            text-align: center;
+            color: #333;
+        }
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            margin: 1rem 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .option-group {
+            display: flex;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .option-btn {
+            flex: 1;
+            padding: 0.8rem;
+            background-color: #d9b3ff;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .option-btn:hover {
+            background-color: #c399ff;
+        }
+        .next-btn {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: #d9b3ff;
+            border: none;
+            border-radius: 5px;
+            color: #fff;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .next-btn:hover {
+            background-color: #c399ff;
+        }
+        .dialog-box {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            z-index: 999;
+            overflow: hidden;
+        }
+        .dialog-message {
+            position: absolute;
+            color: #fff;
+            background-color: rgba(255, 0, 0, 0.8);
+            padding: 1rem;
+            border-radius: 5px;
+            font-size: 1.2rem;
+            white-space: nowrap; /* 文字不换行 */
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.8); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        /* 隐藏音频控件，仅后台播放 */
+        audio {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="question-card active" id="q1">
+            <h2>最喜欢的剧本杀是什么？</h2>
+            <input type="text" id="a1" placeholder="请输入你的答案...">
+            <button class="next-btn" onclick="nextQuestion('q1', 'q2')">下一个</button>
+        </div>
+        <div class="question-card" id="q2">
+            <h2>最喜欢什么线？</h2>
+            <input type="text" id="a2" placeholder="请输入你的答案...">
+            <button class="next-btn" onclick="nextQuestion('q2', 'q3')">下一个</button>
+        </div>
+        <div class="question-card" id="q3">
+            <h2>最喜欢玩什么角色？</h2>
+            <input type="text" id="a3" placeholder="请输入你的答案...">
+            <button class="next-btn" onclick="nextQuestion('q3', 'q4')">下一个</button>
+        </div>
+        <div class="question-card" id="q4">
+            <h2>喜欢输出还是观看演绎？</h2>
+            <input type="text" id="a4" placeholder="请输入你的答案...">
+            <button class="next-btn" onclick="nextQuestion('q4', 'q5')">下一个</button>
+        </div>
+        <div class="question-card" id="q5">
+            <h2>最喜欢的亡夫是谁？</h2>
+            <input type="text" id="a5" placeholder="请输入你的答案...">
+            <button class="next-btn" onclick="nextQuestion('q5', 'q6')">下一个</button>
+        </div>
+        <!-- 第6题：选择否直接触发弹窗 -->
+        <div class="question-card" id="q6">
+            <h2>还想再见他一面吗？</h2>
+            <div class="option-group">
+                <button class="option-btn" onclick="nextQuestion('q6', 'q7')">是</button>
+                <button class="option-btn" onclick="triggerDialog()">否</button>
+            </div>
+        </div>
+        <!-- 第7题：修改为"你准备好去见他了吗？"，选项为是/否 -->
+        <div class="question-card" id="q7">
+            <h2>你准备好去见他了吗？</h2>
+            <div class="option-group">
+                <button class="option-btn" onclick="triggerDialog()">是</button>
+                <button class="option-btn" onclick="triggerDialog()">否</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="dialog-box" id="dialog"></div>
+    <!-- 音频元素：添加preload预加载，优化自动播放体验 -->
+    <audio id="dialogAudio" src="http://music.163.com/song/media/outer/url?id=2123923916.mp3" preload="auto" loop>
+        您的浏览器不支持音频播放，请升级浏览器
+    </audio>
+
+    <script>
+        const messages = [
+            "生生世世 万劫不复！！！",
+            "月寒 说你爱我！！！",
+            "我们曾经的一切你都忘了吗？",
+            "你只能是我的",
+            "你永远逃不走",
+            "我们拉过勾的",
+            "漫天血色 十里红妆",
+            "月寒，你终究还是想起了一切，恨我吗？",
+            "你和玄墨的回忆，就那么重要吗？",
+            "是你亲手，将那把匕首捅进了他的心脏",
+            "是你亲手杀了他！",
+            "我问你，你还爱他吗？",
+            "你忘记了他，背弃了他，亲手杀了他！",
+            "凭什么，凭什么他已经死了却还是可以分走你的爱！",
+            "只有我会一如既往的爱你啊，只有我！",
+            "这玄冥川的满天血色正好作为我的聘礼",
+            "我贱种祁夜如今求娶月之神女。",
+            "你这样悲悯的天神，正好配我这低贱的杂种。",
+            "月寒，你愿意嫁给我吗？",
+            "你之后的生生世世，都会爱我，只爱我一个人。",
+            "你，和我，中了同心咒的!",
+            "你要爱我，只能爱我。",
+            "无论你愿意或者不愿意，我不在意",
+            "你答应也得答应不答应也得答应！",
+            "今日，我们就在这里拜堂。",
+            "你生是我祁夜的人，死是我祁夜的鬼。",
+            "月寒，我的妻子，我们回家吧。",
+            "你说你愿意跟我万劫不复的！",
+            "月寒，别忘了，我们会生生世世在一起",
+            "以后你遇到的每一个心爱之人，都是我。",
+            "月寒和祁夜，会永远在一起的。",
+            "我会是你唯一的爱人",
+            "我祁夜，死而无憾，月寒，来世再见",
+            "你爱的每一个人都是我",
+            "我会是你唯一的爱人",
+            "给我重新说"
+        ];
+        let messageIndex = 0;
+        let interval;
+        const audio = document.getElementById('dialogAudio');
+
+        function nextQuestion(currentId, nextId) {
+            document.getElementById(currentId).classList.remove('active');
+            document.getElementById(nextId).classList.add('active');
+        }
+
+        function createMessage() {
+            const message = document.createElement('div');
+            message.className = 'dialog-message';
+            message.textContent = messages[messageIndex];
+            message.style.left = `${Math.random() * 80 + 10}%`;
+            message.style.top = `${Math.random() * 80 + 10}%`;
+            document.getElementById('dialog').appendChild(message);
+            messageIndex = (messageIndex + 1) % messages.length;
+            // 已删除弹窗自动消失的定时器逻辑，弹窗将一直保留直到点击关闭
+        }
+
+        function triggerDialog() {
+            document.getElementById('dialog').style.display = 'block';
+            // 直接播放音频，删除失败捕获逻辑
+            audio.play();
+            // 调整弹窗速度为100毫秒/个，适配更多台词
+            interval = setInterval(createMessage, 100);
+        }
+
+        function closeDialog() {
+            document.getElementById('dialog').style.display = 'none';
+            clearInterval(interval);
+            document.getElementById('dialog').innerHTML = '';
+            audio.pause();
+        }
+
+        // 点击弹窗区域可关闭
+        document.getElementById('dialog').addEventListener('click', closeDialog);
+    </script>
+</body>
+</html>
